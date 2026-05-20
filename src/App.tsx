@@ -1,122 +1,84 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
+import { getCourses } from "./api/courseApi";
+import { CourseSelectStep } from "./components/CourseSelectStep";
+import { StepIndicator } from "./components/StepIndicator";
+import type { Course, CourseCategory, EnrollmentType } from "./types/enrollment";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentStep] = useState(1);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [categories, setCategories] = useState<CourseCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<CourseCategory | "all">("all");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [enrollmentType, setEnrollmentType] = useState<EnrollmentType>("personal");
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+  const [courseError, setCourseError] = useState("");
+
+  useEffect(() => {
+    async function loadCourses() {
+      setIsLoadingCourses(true);
+      setCourseError("");
+
+      try {
+        const response = await getCourses(selectedCategory);
+        setCourses(response.courses);
+        setCategories(response.categories);
+      } catch {
+        setCourseError("강의 목록을 불러오지 못했습니다. 다시 시도해 주세요.");
+      } finally {
+        setIsLoadingCourses(false);
+      }
+    }
+
+    loadCourses();
+  }, [selectedCategory]);
+
+  const handleNext = () => {
+    if (!selectedCourseId) {
+      setCourseError("다음 단계로 이동하려면 수강할 강의를 선택해 주세요.");
+      return;
+    }
+
+    setCourseError("");
+    alert("1단계 검증 성공. 다음 단계 화면을 이어서 구현합니다.");
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+    <main className="app-shell">
+      <section className="hero">
+        <p className="eyebrow">LiveClass Assignment FE-A</p>
+        <h1>다단계 수강 신청 폼</h1>
+        <p>
+          강의 선택부터 수강생 정보 입력, 최종 확인 및 제출까지 이어지는
+          수강 신청 흐름을 구현합니다.
+        </p>
       </section>
 
-      <div className="ticks"></div>
+      <StepIndicator currentStep={currentStep} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      <CourseSelectStep
+        courses={courses}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        selectedCourseId={selectedCourseId}
+        enrollmentType={enrollmentType}
+        isLoading={isLoadingCourses}
+        errorMessage={courseError}
+        onCategoryChange={(category) => {
+          setSelectedCategory(category);
+          setSelectedCourseId("");
+          setCourseError("");
+        }}
+        onCourseSelect={(courseId) => {
+          setSelectedCourseId(courseId);
+          setCourseError("");
+        }}
+        onEnrollmentTypeChange={setEnrollmentType}
+        onNext={handleNext}
+      />
+    </main>
+  );
 }
 
-export default App
+export default App;
