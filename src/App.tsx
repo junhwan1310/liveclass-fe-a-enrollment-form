@@ -1,18 +1,27 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import { getCourses } from "./api/courseApi";
+import { submitEnrollment } from "./api/enrollmentApi";
 import { ApplicantInfoStep } from "./components/ApplicantInfoStep";
 import { CourseSelectStep } from "./components/CourseSelectStep";
+import {
+  getSubmitErrorMessage,
+  ReviewSubmitStep,
+} from "./components/ReviewSubmitStep";
 import { StepIndicator } from "./components/StepIndicator";
+import { SuccessScreen } from "./components/SuccessScreen";
 import {
   applicantStepSchema,
   courseStepSchema,
+  enrollmentFormSchema,
 } from "./utils/validation";
 import type {
   Applicant,
   Course,
   CourseCategory,
   EnrollmentFormValues,
+  EnrollmentRequest,
+  EnrollmentResponse,
   EnrollmentType,
   GroupInfo,
   Participant,
@@ -61,6 +70,25 @@ function toFieldErrors(error: unknown) {
   return {};
 }
 
+function createEnrollmentRequest(values: EnrollmentFormValues): EnrollmentRequest {
+  if (values.type === "personal") {
+    return {
+      courseId: values.courseId,
+      type: "personal",
+      applicant: values.applicant,
+      agreedToTerms: values.agreedToTerms,
+    };
+  }
+
+  return {
+    courseId: values.courseId,
+    type: "group",
+    applicant: values.applicant,
+    group: values.group,
+    agreedToTerms: values.agreedToTerms,
+  };
+}
+
 function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -70,6 +98,11 @@ function App() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [courseError, setCourseError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [enrollmentResponse, setEnrollmentResponse] = useState<EnrollmentResponse | null>(null);
+
+  const selectedCourse = courses.find((course) => course.id === formValues.courseId);
 
   useEffect(() => {
     async function loadCourses() {
@@ -237,8 +270,61 @@ function App() {
     }
 
     setFieldErrors({});
+    setSubmitError("");
     setCurrentStep(3);
   };
+
+  const handleSubmit = async () => {
+    const result = enrollmentFormSchema.safeParse(formValues);
+
+    if (!result.success) {
+      const errors = toFieldErrors(result.error);
+
+      if (errors.agreedToTerms) {
+        setSubmitError(errors.agreedToTerms);
+        return;
+      }
+
+      setSubmitError("입력값을 다시 확인해 주세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const request = createEnrollmentRequest(formValues);
+      const response = await submitEnrollment(request);
+      setEnrollmentResponse(response);
+    } catch (error) {
+      setSubmitError(getSubmitErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReset = () => {
+    setCurrentStep(1);
+    setSelectedCategory("all");
+    setFormValues(initialFormValues);
+    setFieldErrors({});
+    setCourseError("");
+    setSubmitError("");
+    setEnrollmentResponse(null);
+  };
+
+  if (enrollmentResponse) {
+    return (
+      <main className="app-shell">
+        <SuccessScreen
+          response={enrollmentResponse}
+          formValues={formValues}
+          selectedCourse={selectedCourse}
+          onReset={handleReset}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="app-shell">
@@ -298,29 +384,22 @@ function App() {
       )}
 
       {currentStep === 3 && (
-        <section className="card">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">STEP 3</p>
-              <h2>확인 및 제출 화면</h2>
-            </div>
-            <p className="section-description">
-              다음 단계에서 전체 신청 내용을 요약하고 제출 기능을 연결합니다.
-            </p>
-          </div>
-
-          <div className="empty-box">2단계 검증이 완료되었습니다.</div>
-
-          <div className="button-row between">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setCurrentStep(2)}
-            >
-              이전 단계로
-            </button>
-          </div>
-        </section>
+        <ReviewSubmitStep
+          formValues={formValues}
+          selectedCourse={selectedCourse}
+          errorMessage={submitError}
+          isSubmitting={isSubmitting}
+          onTermsChange={(checked) => {
+            setFormValues((prev) => ({
+              ...prev,
+              agreedToTerms: checked,
+            }));
+            setSubmitError("");
+          }}
+          onEditStep={(step) => setCurrentStep(step)}
+          onPrev={() => setCurrentStep(2)}
+          onSubmit={handleSubmit}
+        />
       )}
     </main>
   );
