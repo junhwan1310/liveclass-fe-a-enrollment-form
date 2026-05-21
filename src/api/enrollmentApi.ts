@@ -44,6 +44,20 @@ export async function submitEnrollment(
     });
   }
 
+  // 개인 신청은 1명, 단체 신청은 headCount만큼 좌석이 필요하다.
+  // 예: 남은 좌석이 1석인데 단체 신청 2명이면 제출을 막아야 한다.
+  const requestedSeats = request.type === "group" ? request.group.headCount : 1;
+  const remainingSeats = course.maxCapacity - course.currentEnrollment;
+
+  // 신청 인원이 남은 좌석보다 많으면 정원 초과로 처리한다.
+  // 이 처리가 없으면 1석 남은 강의에 단체 2명 신청이 되는 문제가 생긴다.
+  if (requestedSeats > remainingSeats) {
+    throw createApiError({
+      code: "COURSE_FULL",
+      message: `남은 좌석은 ${remainingSeats}석입니다. 신청 인원을 줄이거나 다른 강의를 선택해 주세요.`,
+    });
+  }
+
   if (request.applicant.email.toLowerCase().includes("duplicate")) {
     throw createApiError({
       code: "DUPLICATE_ENROLLMENT",
