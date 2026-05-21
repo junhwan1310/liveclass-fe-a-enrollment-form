@@ -35,6 +35,21 @@ function formatDateRange(startDate: string, endDate: string) {
 export function getSubmitErrorMessage(error: unknown) {
   const apiError = error as Partial<ErrorResponse>;
 
+  // COURSE_FULL은 두 가지 상황에서 발생할 수 있다.
+  //
+  // 1. 정원이 완전히 마감된 경우
+  //    예: maxCapacity 25, currentEnrollment 25
+  //    → "선택한 강의의 정원이 마감되었습니다..."
+  //
+  // 2. 정원은 조금 남아 있지만, 신청 인원이 남은 좌석보다 많은 경우
+  //    예: 남은 좌석 1석인데 단체 신청 2명
+  //    → "남은 좌석은 1석입니다..."
+  //
+  // 기존 코드에서는 COURSE_FULL이면 무조건 고정 문구만 보여줬기 때문에
+  // enrollmentApi.ts에서 만든 "남은 좌석은 1석입니다..." 메시지가 화면에 나오지 않았다.
+  //
+  // 그래서 apiError.message가 있으면 그 메시지를 먼저 보여주도록 수정했다.
+  // 즉, 이 부분이 "정원 마감" 고정 문구 대신 "x석 남았습니다" 문구가 화면에 보이게 만든 코드다.
   if (apiError.code === "COURSE_FULL") {
     return (
       apiError.message ??
@@ -42,14 +57,18 @@ export function getSubmitErrorMessage(error: unknown) {
     );
   }
 
+  // 중복 신청 에러도 Mock API에서 message를 내려주면 그 문구를 우선 보여준다.
   if (apiError.code === "DUPLICATE_ENROLLMENT") {
     return apiError.message ?? "이미 신청된 강의입니다. 이메일 또는 신청 내역을 확인해 주세요.";
   }
 
+  // 입력값 오류도 Mock API에서 전달한 메시지를 우선 보여준다.
+  // 예: 참가자 이메일 중복
   if (apiError.code === "INVALID_INPUT") {
     return apiError.message ?? "입력값을 다시 확인해 주세요.";
   }
 
+  // 위 조건에 걸리지 않는 알 수 없는 오류일 때 보여주는 기본 메시지다.
   return "일시적인 오류로 신청을 제출하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
