@@ -654,3 +654,15 @@
     flex-direction: column;
   }
 }
+
+.draft-notice {
+  max-width: 980px;
+  margin: 0 auto 18px;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  line-height: 1.5;
+}

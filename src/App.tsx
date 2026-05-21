@@ -15,6 +15,11 @@ import {
   courseStepSchema,
   enrollmentFormSchema,
 } from "./utils/validation";
+import {
+  clearEnrollmentDraft,
+  loadEnrollmentDraft,
+  saveEnrollmentDraft,
+} from "./utils/storage";
 import type {
   Applicant,
   Course,
@@ -27,12 +32,16 @@ import type {
   Participant,
 } from "./types/enrollment";
 
+// 단체 신청에서 인원수를 선택하면 그 수만큼 참가자 입력칸이 필요하다.
+// 처음에는 최소 인원인 2명으로 시작한다.
 const createParticipants = (count: number): Participant[] =>
   Array.from({ length: count }, () => ({
     name: "",
     email: "",
   }));
 
+// 폼 전체의 기본값이다.
+// 개인 신청과 단체 신청을 같은 상태 객체에서 관리해서 이전 단계로 돌아가도 값이 유지되게 했다.
 const initialFormValues: EnrollmentFormValues = {
   courseId: "",
   type: "personal",
@@ -51,6 +60,8 @@ const initialFormValues: EnrollmentFormValues = {
   agreedToTerms: false,
 };
 
+// zod 에러를 화면에서 쓰기 쉽게 "applicant.email" 같은 문자열 key로 바꾼다.
+// 각 input 아래에 필드별 에러 메시지를 보여주기 위한 처리다.
 function toFieldErrors(error: unknown) {
   if (
     typeof error === "object" &&
@@ -70,6 +81,8 @@ function toFieldErrors(error: unknown) {
   return {};
 }
 
+// 화면에서 관리하는 formValues를 실제 제출 API 형식으로 바꾼다.
+// 개인 신청과 단체 신청의 요청 body가 다르기 때문에 여기서 분기한다.
 function createEnrollmentRequest(values: EnrollmentFormValues): EnrollmentRequest {
   if (values.type === "personal") {
     return {
@@ -94,7 +107,13 @@ function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<CourseCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<CourseCategory | "all">("all");
-  const [formValues, setFormValues] = useState<EnrollmentFormValues>(initialFormValues);
+
+  // 새로고침 후에도 입력값이 남아있게 localStorage에서 임시 저장값을 먼저 읽어온다.
+  // 저장된 값이 없으면 기본값으로 시작한다.
+  const [formValues, setFormValues] = useState<EnrollmentFormValues>(() => {
+    return loadEnrollmentDraft() ?? initialFormValues;
+  });
+
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [courseError, setCourseError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -104,6 +123,21 @@ function App() {
 
   const selectedCourse = courses.find((course) => course.id === formValues.courseId);
 
+  // 사용자가 뭔가 입력했는지 확인한다.
+  // 입력 중인 내용이 있을 때만 새로고침/닫기 경고를 띄우기 위해 사용한다.
+  const hasDraft =
+    formValues.courseId ||
+    formValues.applicant.name ||
+    formValues.applicant.email ||
+    formValues.applicant.phone ||
+    formValues.applicant.motivation ||
+    formValues.group.organizationName ||
+    formValues.group.contactPerson ||
+    formValues.group.participants.some(
+      (participant) => participant.name || participant.email
+    );
+
+  // 카테고리가 바뀔 때마다 mock API에서 강의 목록을 다시 가져온다.
   useEffect(() => {
     async function loadCourses() {
       setIsLoadingCourses(true);
@@ -123,6 +157,31 @@ function App() {
     loadCourses();
   }, [selectedCategory]);
 
+  // formValues가 바뀔 때마다 브라우저에 자동 임시 저장한다.
+  // 그래서 새로고침해도 작성 중이던 내용이 복구된다.
+  useEffect(() => {
+    saveEnrollmentDraft(formValues);
+  }, [formValues]);
+
+  // 작성 중인 내용이 있을 때 브라우저 새로고침/닫기를 하면 확인창을 띄운다.
+  // 신청 완료 화면에서는 더 이상 경고가 필요 없으므로 제외한다.
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasDraft || enrollmentResponse) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasDraft, enrollmentResponse]);
+
   const updateApplicant = (field: keyof Applicant, value: string) => {
     setFormValues((prev) => ({
       ...prev,
@@ -132,6 +191,7 @@ function App() {
       },
     }));
 
+    // 사용자가 해당 필드를 다시 수정하면 기존 에러를 지운다.
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next[`applicant.${field}`];
@@ -193,6 +253,9 @@ function App() {
   const handleHeadCountChange = (headCount: number) => {
     setFormValues((prev) => {
       const currentParticipants = prev.group.participants;
+
+      // 인원수를 늘리면 기존 입력값은 유지하고 새 칸만 추가한다.
+      // 인원수를 줄이면 앞쪽 참가자 정보만 남긴다.
       const nextParticipants = Array.from({ length: headCount }, (_, index) => {
         return currentParticipants[index] ?? { name: "", email: "" };
       });
@@ -216,6 +279,8 @@ function App() {
   };
 
   const handleEnrollmentTypeChange = (type: EnrollmentType) => {
+    // 단체 신청에서 개인 신청으로 바꾸면 단체 정보가 더 이상 필요하지 않다.
+    // 실수로 입력값이 사라지는 것을 막기 위해 확인창을 띄운다.
     if (formValues.type === "group" && type === "personal") {
       const shouldChange = window.confirm(
         "개인 신청으로 변경하면 입력한 단체 신청 정보가 초기화됩니다. 변경할까요?"
@@ -242,6 +307,7 @@ function App() {
   };
 
   const handleCourseStepNext = () => {
+    // 1단계에서는 강의 선택 여부와 신청 유형만 검증한다.
     const result = courseStepSchema.safeParse({
       courseId: formValues.courseId,
       type: formValues.type,
@@ -258,6 +324,7 @@ function App() {
   };
 
   const handleApplicantStepNext = () => {
+    // 2단계에서는 신청자 정보와 단체 신청 조건부 필드를 검증한다.
     const result = applicantStepSchema.safeParse({
       type: formValues.type,
       applicant: formValues.applicant,
@@ -275,6 +342,8 @@ function App() {
   };
 
   const handleSubmit = async () => {
+    // 최종 제출 전에는 전체 데이터를 한 번 더 검증한다.
+    // 특히 약관 동의는 마지막 단계에서 확인한다.
     const result = enrollmentFormSchema.safeParse(formValues);
 
     if (!result.success) {
@@ -295,8 +364,13 @@ function App() {
     try {
       const request = createEnrollmentRequest(formValues);
       const response = await submitEnrollment(request);
+
+      // 제출 성공 후에는 임시 저장된 작성 중 데이터를 삭제한다.
+      clearEnrollmentDraft();
       setEnrollmentResponse(response);
     } catch (error) {
+      // 서버 에러 코드를 사용자에게 이해하기 쉬운 문장으로 바꿔 보여준다.
+      // 입력 데이터는 그대로 유지되므로 수정 후 다시 제출할 수 있다.
       setSubmitError(getSubmitErrorMessage(error));
     } finally {
       setIsSubmitting(false);
@@ -304,6 +378,7 @@ function App() {
   };
 
   const handleReset = () => {
+    clearEnrollmentDraft();
     setCurrentStep(1);
     setSelectedCategory("all");
     setFormValues(initialFormValues);
@@ -338,6 +413,12 @@ function App() {
       </section>
 
       <StepIndicator currentStep={currentStep} />
+
+      {hasDraft && (
+        <div className="draft-notice">
+          입력 내용이 브라우저에 임시 저장되고 있습니다. 새로고침 후에도 작성 중인 내용을 이어서 입력할 수 있습니다.
+        </div>
+      )}
 
       {currentStep === 1 && (
         <CourseSelectStep
