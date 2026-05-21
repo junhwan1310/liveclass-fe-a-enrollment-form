@@ -90,14 +90,21 @@ export const applicantStepSchema = z
   .object({
     type: z.enum(["personal", "group"]),
     applicant: applicantSchema,
-    group: groupSchema.optional(),
+    group: z.unknown().optional(),
   })
   .superRefine((values, ctx) => {
-    if (values.type === "group" && !values.group) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["group"],
-        message: "단체 신청 정보를 입력해 주세요.",
+    if (values.type !== "group") {
+      return;
+    }
+
+    const groupResult = groupSchema.safeParse(values.group);
+
+    if (!groupResult.success) {
+      groupResult.error.issues.forEach((issue) => {
+        ctx.addIssue({
+          ...issue,
+          path: ["group", ...issue.path],
+        });
       });
     }
   });
@@ -113,7 +120,7 @@ export const enrollmentFormSchema = z
     courseId: z.string().min(1, "수강할 강의를 선택해 주세요."),
     type: z.enum(["personal", "group"]),
     applicant: applicantSchema,
-    group: groupSchema,
+    group: z.unknown().optional(),
     agreedToTerms: z.boolean(),
   })
   .superRefine((values, ctx) => {
@@ -125,17 +132,21 @@ export const enrollmentFormSchema = z
       });
     }
 
-    if (values.type === "group") {
-      const groupResult = groupSchema.safeParse(values.group);
+    // 개인 신청은 단체 정보를 검사하지 않는다.
+    // 단체 신청일 때만 groupSchema를 적용한다.
+    if (values.type !== "group") {
+      return;
+    }
 
-      if (!groupResult.success) {
-        groupResult.error.issues.forEach((issue) => {
-          ctx.addIssue({
-            ...issue,
-            path: ["group", ...issue.path],
-          });
+    const groupResult = groupSchema.safeParse(values.group);
+
+    if (!groupResult.success) {
+      groupResult.error.issues.forEach((issue) => {
+        ctx.addIssue({
+          ...issue,
+          path: ["group", ...issue.path],
         });
-      }
+      });
     }
   });
 
