@@ -36,11 +36,14 @@ export function getSubmitErrorMessage(error: unknown) {
   const apiError = error as Partial<ErrorResponse>;
 
   if (apiError.code === "COURSE_FULL") {
-    return "선택한 강의의 정원이 마감되었습니다. 강의 선택 단계에서 다른 강의를 선택해 주세요.";
+    return (
+      apiError.message ??
+      "선택한 강의의 정원이 마감되었습니다. 강의 선택 단계에서 다른 강의를 선택해 주세요."
+    );
   }
 
   if (apiError.code === "DUPLICATE_ENROLLMENT") {
-    return "이미 신청된 강의입니다. 이메일 또는 신청 내역을 확인해 주세요.";
+    return apiError.message ?? "이미 신청된 강의입니다. 이메일 또는 신청 내역을 확인해 주세요.";
   }
 
   if (apiError.code === "INVALID_INPUT") {
