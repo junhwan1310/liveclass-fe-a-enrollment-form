@@ -4,10 +4,8 @@ import { getCourses } from "./api/courseApi";
 import { submitEnrollment } from "./api/enrollmentApi";
 import { ApplicantInfoStep } from "./components/ApplicantInfoStep";
 import { CourseSelectStep } from "./components/CourseSelectStep";
-import {
-  getSubmitErrorMessage,
-  ReviewSubmitStep,
-} from "./components/ReviewSubmitStep";
+import { ReviewSubmitStep } from "./components/ReviewSubmitStep";
+import { getSubmitErrorMessage } from "./utils/submitError";
 import { StepIndicator } from "./components/StepIndicator";
 import { SuccessScreen } from "./components/SuccessScreen";
 import {
