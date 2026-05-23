@@ -1,19 +1,49 @@
 import type { Applicant, EnrollmentType, GroupInfo, Participant } from "../types/enrollment";
 
+/*
+  이 파일은 2단계 신청자 정보 입력 화면이다.
+
+  역할:
+  1. 이름, 이메일, 전화번호, 수강 동기 입력
+  2. 단체 신청일 때만 단체 정보 표시
+  3. 신청 인원수에 맞춰 참가자 명단 입력
+  4. 필드별 에러 메시지 표시
+
+*/
+
 interface ApplicantInfoStepProps {
+  // 개인 신청인지 단체 신청인지
   type: EnrollmentType;
+
+  // 신청자 공통 정보
   applicant: Applicant;
+
+  // 단체 신청 정보
   group: GroupInfo;
+
+  // validation.ts 검증 결과로 만들어진 필드별 에러 메시지
   errors: Record<string, string>;
+
+  // 신청자 정보 변경 함수
   onApplicantChange: (field: keyof Applicant, value: string) => void;
+
+  // 단체 정보 변경 함수
   onGroupChange: (field: keyof Omit<GroupInfo, "participants">, value: string | number) => void;
+
+  // 참가자 이름/이메일 변경 함수
   onParticipantChange: (
     index: number,
     field: keyof Participant,
     value: string
   ) => void;
+
+  // 신청 인원수 변경 함수
   onHeadCountChange: (headCount: number) => void;
+
+  // 이전 단계로 이동
   onPrev: () => void;
+
+  // 다음 단계로 이동
   onNext: () => void;
 }
 
@@ -41,6 +71,7 @@ export function ApplicantInfoStep({
         </p>
       </div>
 
+      {/* 공통 신청자 정보 영역. 개인/단체 신청 모두 입력한다. */}
       <div className="form-grid">
         <label className="field">
           <span>이름 *</span>
@@ -93,6 +124,13 @@ export function ApplicantInfoStep({
         </label>
       </div>
 
+      {/*
+        [핵심 기능]
+        단체 신청일 때만 단체 신청 정보가 화면에 나타난다.
+
+        type === "group"일 때만 렌더링되므로,
+        개인 신청에서는 단체명/참가자 명단 입력칸이 보이지 않는다.
+      */}
       {type === "group" && (
         <div className="group-section">
           <div className="group-title">
@@ -124,6 +162,7 @@ export function ApplicantInfoStep({
                 value={group.headCount}
                 onChange={(event) => onHeadCountChange(Number(event.target.value))}
               >
+                {/* 2명부터 10명까지 선택 가능 */}
                 {Array.from({ length: 9 }, (_, index) => index + 2).map((count) => (
                   <option key={count} value={count}>
                     {count}명
@@ -148,6 +187,7 @@ export function ApplicantInfoStep({
             </label>
           </div>
 
+          {/* 참가자 명단 입력 영역 */}
           <div className="participants">
             <div className="participants-header">
               <h3>참가자 명단</h3>
@@ -159,6 +199,13 @@ export function ApplicantInfoStep({
             )}
 
             <div className="participant-list">
+              {/*
+                [핵심 기능]
+                신청 인원수에 맞춰 participants 배열을 map으로 반복 렌더링한다.
+
+                예:
+                headCount가 3이면 participant-row가 3개 생성된다.
+              */}
               {group.participants.map((participant, index) => (
                 <div className="participant-row" key={index}>
                   <strong>{index + 1}</strong>
