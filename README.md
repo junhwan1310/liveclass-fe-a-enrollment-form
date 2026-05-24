@@ -553,7 +553,9 @@ AI가 제안한 코드를 그대로 제출하지 않고, 실행 결과를 확인
 
 ## Git 작업 단위
 
-주요 작업은 기능 구현, 버그 수정, 리팩토링, 테스트, 문서화 단위로 나누어 커밋했습니다.
+주요 작업은 기능 구현, 버그 수정, 리팩토링, 테스트, 문서화, 의존성 정리 단위로 나누어 커밋했습니다.
+
+초기 기능 구현 단계에서는 강의 선택, 신청자 정보 입력, 확인 및 제출 흐름을 순서대로 구현했고, 이후에는 개인/단체 신청 조건부 검증, 정원 초과 처리, 제출 에러 메시지 처리, 테스트 추가, README 보강, 학습용 주석 정리, 사용하지 않는 의존성 제거를 별도 커밋으로 나누었습니다.
 
 주요 커밋 예시는 다음과 같습니다.
 
@@ -571,4 +573,8 @@ fix: show remaining seat error message
 refactor: move submit error helper to utils
 test: add validation and mock api tests
 docs: write assignment README
+docs: clarify AI usage in README
+docs: add learning comments to key files
+docs: correct learning comments
+chore: clean up unused dependencies and README wording
 ```

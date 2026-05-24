@@ -152,8 +152,6 @@ export const courseStepSchema = z.object({
   공통 신청자 정보는 항상 검증한다.
   단체 신청일 때만 groupSchema를 추가로 검증한다.
 
-  면접 핵심:
-  "개인 신청에서는 단체 정보가 검증 대상이 되지 않도록 했습니다."
 */
 export const applicantStepSchema = z
   .object({
