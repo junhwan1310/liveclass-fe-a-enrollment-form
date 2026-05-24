@@ -35,7 +35,7 @@
 | Test | Vitest |
 | Styling | CSS |
 | Mock API | 로컬 TypeScript 함수 기반 Mock API |
-| 상태 관리 | React useState / useEffect |
+| 상태 관리 | React useState / useEffect 기반 App 단위 통합 formValues + 스텝별 검증 schema |
 | 임시 저장 | localStorage |
 | 코드 검사 | ESLint |
 
