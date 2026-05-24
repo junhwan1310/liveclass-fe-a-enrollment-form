@@ -47,11 +47,11 @@ import type {
   5. 에러 상태(fieldErrors, submitError, courseError)
   6. 제출 성공 결과(enrollmentResponse)
 
-  Q3. 제출 실패 처리 질문
+- 제출 실패 처리?
   → handleSubmit, submitError, getSubmitErrorMessage 부분을 보면 된다.
 
-  Q5. 5단계 확장 질문
-  → currentStep 조건부 렌더링 부분을 설정 객체로 분리하면 된다고 말하면 된다.
+- 5단계 확장?
+  → currentStep 조건부 렌더링 부분을 설정 객체로 분리하면 된다
 */
 
 // 단체 신청에서 인원수를 선택하면 그 수만큼 참가자 입력칸이 필요하다.
